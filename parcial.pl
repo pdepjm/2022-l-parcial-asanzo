@@ -42,15 +42,6 @@ separacionNiveles(NivelA,NivelB,Separacion):-
 
 
 % PUNTO 3
-cantNivelesExistentes(Cant):-
-    separacionNiveles(_,_,Cant),
-    forall(separacionNiveles(_,_,Sep), Cant >= Sep).
-
-% Otra forma de hacerlo (un poco más alejada del paradigma)
-% podría ser usando findall + length sobre nivelSuperior/2.
-
-% Punto 4
-
 % atención a respetar los nombres elegidos en el punto 1
 necesita(carla, alimentacion).
 necesita(carla, descanso).
@@ -65,19 +56,109 @@ necesita(manuel, libertad).
 necesita(charly, afecto).
 
 
-% Punto 5
+% Punto 4
+% Encontrar la necesidad de mayor jerarquía de una persona. 
+% En el caso de Carla, es tener un empleo.
 
-% necesidadMasJerarquica(Necesidad):-
-% not o forall usando nivelSuperior
-% "ningún nivel de otra necesidad es superior a esta"  
-% o bien "todo otro nivel de otra necesidad es inferior a este nivel"
+
+necesidadMayorJerarquia(Persona,Necesidad):-
+    necesita(Persona,Necesidad),
+    not((necesita(Persona,OtraNecesidad),mayorJerarquia(OtraNecesidad,Necesidad))).
+
+mayorJerarquia(Necesidad1,Necesidad2):-
+    separacionEntre(Necesidad2,Necesidad1,Separacion),
+    Separacion > 0.
+
+%% Variante sutil
+necesidadMayorJerarquia1(Persona,Necesidad):-
+    necesita(Persona,Necesidad),
+    not(necesitaAlgoPrevioA(Persona,Necesidad)).
+
+necesitaAlgoPrevioA(Persona,Necesidad):-
+    necesita(Persona,OtraNecesidad),
+    separacionEntre(OtraNecesidad,Necesidad,Separacion),
+    Separacion > 0.
+
+% Otra variante
+necesidadMayorJerarquia2(Persona,Necesidad):-
+    jerarquiaNecesidad(Persona,Necesidad,JerarquiaMax),
+    forall(jerarquiaNecesidad(Persona,_,OtraJerarquia), JerarquiaMax >= OtraJerarquia).    
+
+jerarquiaNecesidad(Persona,Necesidad,Jerarquia):-
+    necesita(Persona,Necesidad),
+    necesidad(Necesidad,Nivel),
+    nivelBasico(NivelBasico),
+    separacionNiveles(NivelBasico,Nivel,Jerarquia).
+
+nivelBasico(Nivel):-
+    nivelSuperior(_,Nivel),
+    not(nivelSuperior(Nivel,_)).
+
+% Punto 5
+% Saber si una persona pudo satisfacer por completo algún nivel de la pirámide.
+% Por ejemplo, Juan pudo satisfacer por completo el nivel fisiologico.
+
+nivel(Nivel):- necesidad(_,Nivel).
+% nivel(Nivel):-nivelSuperior(Nivel,_).
+% nivel(Nivel):-nivelBaciso(Nivel)
+
+persona(Persona):- necesita(Persona,_).
+% persona(carla).
+
+nivelSatisfecho(Persona,Nivel):-
+    persona(Persona),
+    nivel(Nivel),
+    not(nivelConNecesidades(Persona,Nivel)).
+
+nivelConNecesidades(Persona,Nivel):-
+    necesita(Persona,Necesidad),
+    necesidad(Necesidad,OtroNivel),
+    separacionNiveles(OtroNivel,Nivel,_).
+
+
+%Variante
+
+nivelSatisfecho1(Persona,Nivel):-
+    persona(Persona),
+    nivel(Nivel),
+    not(nivelConNecesidades(Persona,Nivel)).
+
+nivelConNecesidades1(Persona,Nivel):-
+    necesidad(Necesidad,Nivel),
+    necesita(Persona,Necesidad).
+
+nivelConNecesidades1(Persona,Nivel):-
+    necesidad(Necesidad,Nivel),
+    necesitaAlgoPrevioA(Persona,Necesidad).
+
 
 % Punto 6
-% O sea "NO necesita nada de ese nivel"
+% Definir los predicados que permitan analizar si es cierta o no la teoría de Maslow:
+% a) Para una persona en particular.
+% b) Para todas las personas.
+% c) Para la mayoría de las personas. 
 
-% Punto 7
-% a) seCumpleMaslowPara(Pers) :- todas sus necesidades son de 1 solo nivel.
-% b) seCumpleParaTods :- (aridad 0) forall con el anterior
+
+% a) todas sus necesidades son del mismo nivel.
+cumpleMaslow(Persona):-
+    necesita(Persona,Necesidad),
+    forall(necesita(Persona,OtraNecesidad),mismoNivel(Necesidad,OtraNecesidad)).
+
+mismoNivel(Necesidad,OtraNecesidad):-separacionEntre(Necesidad,OtraNecesidad,0).
+
+noCumpleMaslow(Persona):-
+    persona(Persona),
+    necesita(Persona,Necesidad1),
+    necesita(Persona,Necesidad2),
+    separacionEntre(Necesidad1,Necesidad2,Separacion),
+    Separacion > 1.
+ 
+cumpleMaslowTodos:-not(noCumpleMaslow(_)).
+cumpleMaslowTodos1:-
+    forall(persona(Persona),cumpleMaslow(Persona)).
+
 % c) seCumpleParaMayoria :- (aridad 0) acá hay que hacer findall y length 2 veces
 
-% Punto 8
+% Punto 7
+% Creativo
+% se considera correcta cualquier creación que utilice polimorficamente dos tipos de funtores diferentes
